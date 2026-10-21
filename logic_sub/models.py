@@ -9,13 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    confusion_matrix
-)
+from sklearn.metrics import confusion_matrix
 
 
 def compareModels(X_train, X_test, y_train, y_test):
@@ -56,52 +50,80 @@ def compareModels(X_train, X_test, y_train, y_test):
 
     for name, model in models.items():
 
-        # Train
+        # Train model
         model.fit(X_train, y_train)
 
-        # Predict
+        # Predict test data
         y_pred = model.predict(X_test)
 
-        # Evaluate
+        # Confusion matrix:
+        # [[TN, FP],
+        #  [FN, TP]]
+        tn, fp, fn, tp = confusion_matrix(
+            y_test,
+            y_pred,
+            labels=["Absence", "Presence"]
+        ).ravel()
+
+        # Calculate metrics using mathematical formulas
+        accuracy = (tp + tn) / (tp + tn + fp + fn)
+
+        precision = (
+            tp / (tp + fp)
+            if (tp + fp) > 0 else 0
+        )
+
+        recall = (
+            tp / (tp + fn)
+            if (tp + fn) > 0 else 0
+        )
+
+        f1_score = (
+            2 * precision * recall / (precision + recall)
+            if (precision + recall) > 0 else 0
+        )
+
+        # Store results as percentages
         results.append({
             "Model": name,
-            "Accuracy": accuracy_score(y_test, y_pred),
-            "Precision": precision_score(
-                y_test, y_pred, pos_label="Presence", zero_division=0
-            ),
-            "Recall": recall_score(
-                y_test, y_pred, pos_label="Presence", zero_division=0
-            ),
-            "F1 Score": f1_score(
-                y_test, y_pred, pos_label="Presence", zero_division=0
-            )
+            "Accuracy (%)": accuracy * 100,
+            "Precision (%)": precision * 100,
+            "Recall (%)": recall * 100,
+            "F1 Score (%)": f1_score * 100
         })
 
         trained_models[name] = model
 
-    # Rank models by F1 score, then accuracy
+        # Print individual model results
+        print(f"\n========== {name} ==========")
+        print(f"True Positive (TP):  {tp}")
+        print(f"True Negative (TN):  {tn}")
+        print(f"False Positive (FP): {fp}")
+        print(f"False Negative (FN): {fn}")
+        print(f"Accuracy:  {accuracy * 100:.2f}%")
+        print(f"Precision: {precision * 100:.2f}%")
+        print(f"Recall:    {recall * 100:.2f}%")
+        print(f"F1 Score:  {f1_score * 100:.2f}%")
+
+    # Compare all models
     results_df = pd.DataFrame(results)
+
     results_df = results_df.sort_values(
-        by=["F1 Score", "Accuracy"],
+        by=["F1 Score (%)", "Accuracy (%)"],
         ascending=False
     ).reset_index(drop=True)
 
+    print("\n========== MODEL COMPARISON ==========")
+    print(results_df.round(2).to_string(index=False))
+
+    # Select best model by F1 score, then accuracy
     best_name = results_df.loc[0, "Model"]
     best_model = trained_models[best_name]
 
-    print("\nModel Performance:")
-    print(results_df.round(3).to_string(index=False))
-
     print(f"\nBest Model: {best_name}")
-
-    # Confusion matrix for the best model
-    best_predictions = best_model.predict(X_test)
-
-    print("\nConfusion Matrix (best model):")
-    print(confusion_matrix(
-        y_test,
-        best_predictions,
-        labels=["Absence", "Presence"]
-    ))
+    print(
+        f"Accuracy: "
+        f"{results_df.loc[0, 'Accuracy (%)']:.2f}%"
+    )
 
     return results_df, best_model
