@@ -1,2 +1,5 @@
 .csv
 .venv
+.spyproject/
+__pycache__/
+*.py[cod]
